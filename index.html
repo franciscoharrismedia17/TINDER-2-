@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Swipe Match Mini-game</title>
+
+  <!-- Viewport y comportamiento móvil -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <!-- Estilos base -->
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      overflow: hidden;           /* sin scroll */
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;         /* evita gestos que interfieran con swipes */
+    }
+    #app {
+      position: relative;         /* contenedor del canvas y los inputs absolutos */
+      width: 440px;               /* tamaño lógico del juego (tu JS igual hace fit CSS) */
+      height: 956px;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated; /* respeta el look si se escala */
+      touch-action: none;
+    }
+    /* inputs del lead (se crean por JS) heredan estilo básico legible sobre fondo negro */
+    #app input, #app button {
+      font-family: inherit;
+    }
+
+    /* fallback mínimo si falta JS */
+    noscript {
+      color: #fff;
+      font-size: 14px;
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 24px;
+    }
+  </style>
+
+  <!-- Librerías: p5 y p5.sound (usar misma versión) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.2/p5.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.2/addons/p5.sound.min.js" defer></script>
+
+  <!-- Desbloqueo de audio al primer gesto (por si iOS/Safari bloquea) -->
+  <script defer>
+    window.addEventListener('pointerdown', () => {
+      try {
+        const ac = (window.getAudioContext && window.getAudioContext()) || null;
+        if (ac && ac.state !== 'running') ac.resume();
+      } catch (e) { /* no-op */ }
+    }, { once: true, passive: true });
+  </script>
+
+  <!-- Tu juego -->
+  <script src="sketch.js" defer></script>
+
+  <!-- (Opcional) Preload de assets si querés hints al navegador
+  <link rel="preload" href="DS-DIGII.TTF" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="music_loop.mp3" as="audio">
+  <link rel="preload" href="btn_click.wav" as="audio">
+  <link rel="preload" href="swipe_left_like.wav" as="audio">
+  <link rel="preload" href="swipe_right_dislike.wav" as="audio">
+  <link rel="preload" href="match_L1.wav" as="audio">
+  <link rel="preload" href="match_L2.wav" as="audio">
+  <link rel="preload" href="match_L3.wav" as="audio">
+  -->
+</head>
+<body>
+  <div id="app">
+    <noscript>Este juego requiere JavaScript habilitado.</noscript>
+  </div>
+</body>
+</html>
