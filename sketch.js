@@ -317,6 +317,8 @@ function enterLeadDesktop(){
   currentState = STATES.LEAD_DESK;
   leadData = storedLeadData ? { ...storedLeadData } : { firstName:"", lastName:"", email:"", phone:"" };
 
+  touchInProgress = false;
+
   // el canvas no captura clicks mientras está el lead
   canvas.elt.style.zIndex = "0";
   canvas.elt.style.pointerEvents = "none";
@@ -697,6 +699,22 @@ function cleanupLeadMobileBehaviour(){
   }
 }
 
+function isLeadTouch(e){
+  if (currentState !== STATES.LEAD_DESK) return false;
+  if (!leadWrapEl) return true;
+  if (e && typeof e.composedPath === "function") {
+    const path = e.composedPath();
+    if (Array.isArray(path) && path.includes(leadWrapEl)) return true;
+  }
+  const target = e && (e.target || null);
+  if (!target) return true;
+  if (target === window || target === document) return true;
+  if (typeof target === "object" && target !== null && "nodeType" in target) {
+    return leadWrapEl.contains(target);
+  }
+  return true;
+}
+
 function onLeadSubmit(){
   if (leadSubmitting) return;
   const trim = s => (s||"").trim();
@@ -990,6 +1008,7 @@ function mousePressed(e){ if (touchInProgress) return false; const p=getCanvasCo
 function mouseDragged(e){ if (touchInProgress) return false; const p=getCanvasCoords(e.clientX,e.clientY); handlePointerMove(p.x,p.y); return false; }
 function mouseReleased(e){ if (touchInProgress) return false; const p=getCanvasCoords(e.clientX,e.clientY); handlePointerUp(p.x,p.y); return false; }
 function touchStarted(e){
+  if (isLeadTouch(e)) return true;
   const fallback = (typeof touches !== "undefined" && Array.isArray(touches) && touches.length) ? touches : null;
   const list = (e && e.touches && e.touches.length) ? e.touches : fallback;
   if (!list || !list.length) return false;
@@ -1001,6 +1020,7 @@ function touchStarted(e){
   return false;
 }
 function touchMoved(e){
+  if (isLeadTouch(e)) return true;
   const fallback = (typeof touches !== "undefined" && Array.isArray(touches) && touches.length) ? touches : null;
   const list = (e && e.touches && e.touches.length) ? e.touches : fallback;
   if (!list || !list.length) return false;
@@ -1011,6 +1031,7 @@ function touchMoved(e){
   return false;
 }
 function touchEnded(e){
+  if (isLeadTouch(e)) return true;
   const fallback = (typeof touches !== "undefined" && Array.isArray(touches) && touches.length) ? touches : null;
   const list = (e && e.changedTouches && e.changedTouches.length) ? e.changedTouches : fallback;
   const t = list && list.length ? list[0] : null;
