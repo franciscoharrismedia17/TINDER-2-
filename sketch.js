@@ -2,7 +2,7 @@
    sinr — sketch.js (p5.js)
    - Canvas: 440 x 956
    - Desktop: Lead Gen (UNA pantalla) con 4 campos + SUBMIT
-   - Mobile: si no hay lead => form.html
+   - Lead gen embebido tanto en desktop como en mobile cuando falta lead
    - Tutorial (2 pantallas) -> Niveles 1..3 (matches) -> vuelve a L1
    - Swipe: IZQUIERDA = LIKE (umbral igual), DERECHA = DISLIKE
    - Match: igual que card + tap tercio inferior para cerrar
@@ -218,14 +218,6 @@ SFX.match3  = safeLoadSound('matchl3.mp3');
 function setup() {
   storedLeadData = loadStoredLead();
 
-  // Mobile: si no hay lead → form.html
-  if (isMobileDevice() && !storedLeadData) {
-    try { sessionStorage.setItem("postReturnTarget", location.href); } catch(e){}
-    window.location.replace("form.html?return=" + encodeURIComponent(location.href));
-    noLoop();
-    return;
-  }
-
   pixelDensity(1);
   canvas = createCanvas(WIDTH, HEIGHT);
   canvas.parent("app");
@@ -333,7 +325,13 @@ function enterLeadDesktop(){
   if (elFirst){
     elFirst.setAttribute("autocomplete","given-name");
     elFirst.setAttribute("autocapitalize","words");
-    elFirst.focus();
+    const focusFirst = () => {
+      if (!elFirst) return;
+      try { elFirst.focus({ preventScroll: false }); }
+      catch(e){ elFirst.focus(); }
+    };
+    focusFirst();
+    setTimeout(focusFirst, 60);
   }
   if (elPhone) elPhone.setAttribute("inputmode","tel");
   if (elEmail) elEmail.setAttribute("inputmode","email");
@@ -688,7 +686,7 @@ function handlePointerDown(x, y){
 
   if (currentState === STATES.BEGIN) {
     playSfx('btn');
-    if (!isMobileDevice() && shouldShowLeadDesktop()) enterLeadDesktop();
+    if (shouldShowLeadDesktop()) enterLeadDesktop();
     else startTutorialFlow();
     return;
   }
