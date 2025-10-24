@@ -173,6 +173,10 @@ let leadSubmitting = false;
 let leadData = { firstName:"", lastName:"", email:"", phone:"" };
 
 let elFirst=null, elLast=null, elEmail=null, elPhone=null, elBtn=null;
+let leadWrapEl=null, leadFormEl=null;
+let leadMobileCleanup=null;
+let leadMobileActive=false;
+let leadMobileRaf=null;
 
 /* ---------- Input tracking ---------- */
 let touchInProgress = false;
@@ -320,6 +324,7 @@ function enterLeadDesktop(){
   purgeLeadDom();
   createLeadUI();
   positionLeadUI();
+  setupLeadMobileBehaviour();
 
   // foco al primero una sola vez
   if (elFirst){
@@ -355,6 +360,24 @@ function exitLeadDesktopAndGoTutorial(){
 
 function createLeadUI(){
   const c = document.getElementById("app");
+  if (!c) return;
+
+  leadWrapEl = document.createElement("div");
+  leadWrapEl.id = "leadWrap";
+  Object.assign(leadWrapEl.style, {
+    position: "absolute",
+    inset: "0",
+  });
+  c.appendChild(leadWrapEl);
+
+  leadFormEl = document.createElement("div");
+  leadFormEl.id = "leadForm";
+  Object.assign(leadFormEl.style, {
+    position: "absolute",
+    inset: "0",
+  });
+  leadWrapEl.appendChild(leadFormEl);
+
   const mkInput = (id, type, placeholder) => {
     const el = document.createElement("input");
     el.id = id;
@@ -375,7 +398,7 @@ function createLeadUI(){
       boxSizing:"border-box",
       zIndex:4,
     });
-    c.appendChild(el);
+    leadFormEl.appendChild(el);
     return el;
   };
 
@@ -406,19 +429,23 @@ function createLeadUI(){
     zIndex:5,
   });
   elBtn.addEventListener("click", () => { ensureAudioContext(); playSfx('btn'); onLeadSubmit(); });
-  c.appendChild(elBtn);
+  leadFormEl.appendChild(elBtn);
 }
 
 function destroyLeadUI(){
-  const rm = el => { if (el) el.remove(); };
-  rm(elFirst); rm(elLast); rm(elEmail); rm(elPhone); rm(elBtn);
+  cleanupLeadMobileBehaviour();
   elFirst=elLast=elEmail=elPhone=elBtn=null;
+  if (leadWrapEl) {
+    leadWrapEl.remove();
+    leadWrapEl=null;
+    leadFormEl=null;
+  }
 }
 
 function purgeLeadDom(){
   const c = document.getElementById("app");
   if (!c) return;
-  const keep = new Set(["lead-first","lead-last","lead-email","lead-phone","lead-submit"]);
+  const keep = new Set(["leadWrap","leadForm","lead-first","lead-last","lead-email","lead-phone","lead-submit"]);
   Array.from(c.querySelectorAll("input,button")).forEach(el=>{
     if (!keep.has(el.id)) {
       const pos = getComputedStyle(el).position;
@@ -428,6 +455,7 @@ function purgeLeadDom(){
 }
 function positionLeadUI(){
   if (!canvas) return;
+  if (isMobileDevice() && leadMobileActive) return;
   const r = canvas.elt.getBoundingClientRect();
 
   // helpers para convertir coords de canvas -> pantalla
@@ -469,6 +497,206 @@ function positionLeadUI(){
 }
 
 
+
+function requestLeadMobileReframe(){
+  if (!isMobileDevice() || !leadWrapEl) return;
+  if (leadMobileRaf !== null) cancelAnimationFrame(leadMobileRaf);
+  leadMobileRaf = requestAnimationFrame(()=>{
+    leadMobileRaf = null;
+    reframeLeadForMobile();
+  });
+}
+
+function reframeLeadForMobile(){
+  if (!isMobileDevice() || !leadWrapEl) return;
+  const viewport = window.visualViewport || null;
+  const vw = viewport ? viewport.width : window.innerWidth;
+  const vh = viewport ? viewport.height : window.innerHeight;
+  const offsetTop = viewport ? viewport.offsetTop : 0;
+  const offsetLeft = viewport ? viewport.offsetLeft : 0;
+  let width = Math.max(200, vw - 24);
+  width = Math.min(width, 420);
+  width = Math.min(width, vw);
+
+  leadMobileActive = true;
+  leadWrapEl.classList.add("lead-mobile");
+  Object.assign(leadWrapEl.style, {
+    position: "fixed",
+    left: `${offsetLeft}px`,
+    top: `${offsetTop}px`,
+    width: `${vw}px`,
+    height: `${vh}px`,
+    padding: "12px 12px 24px",
+    boxSizing: "border-box",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-start",
+    overflowY: "auto",
+    pointerEvents: "auto",
+    gap: "0",
+  });
+
+  if (leadFormEl) {
+    Object.assign(leadFormEl.style, {
+      position: "relative",
+      inset: "",
+      pointerEvents: "auto",
+      display: "flex",
+      flexDirection: "column",
+      gap: "16px",
+      alignItems: "stretch",
+      width: `${width}px`,
+      maxWidth: "420px",
+      margin: "0 auto",
+      padding: "0",
+    });
+  }
+
+  const inputs = [elFirst, elLast, elEmail, elPhone];
+  inputs.forEach(el => {
+    if (!el) return;
+    Object.assign(el.style, {
+      position: "relative",
+      left: "",
+      top: "",
+      width: "100%",
+      height: "",
+    });
+  });
+
+  if (elBtn) {
+    Object.assign(elBtn.style, {
+      position: "relative",
+      left: "",
+      top: "",
+      width: "100%",
+    });
+  }
+
+  const contentHeight = leadFormEl ? leadFormEl.offsetHeight : 0;
+  let paddingTop = 12;
+  if (contentHeight && contentHeight + 24 < vh) {
+    paddingTop = Math.max(12, (vh - contentHeight) / 2);
+  }
+  leadWrapEl.style.paddingTop = `${paddingTop}px`;
+
+  const active = document.activeElement;
+  if (active && leadWrapEl.contains(active)) {
+    const activeRect = active.getBoundingClientRect();
+    const visibleTop = offsetTop + 16;
+    const visibleBottom = offsetTop + vh - 16;
+    if (activeRect.bottom > visibleBottom) {
+      leadWrapEl.scrollTop += activeRect.bottom - visibleBottom;
+    } else if (activeRect.top < visibleTop) {
+      leadWrapEl.scrollTop += activeRect.top - visibleTop;
+    }
+  }
+}
+
+function setupLeadMobileBehaviour(){
+  if (!isMobileDevice() || !leadWrapEl) return;
+  if (leadMobileCleanup) leadMobileCleanup();
+
+  const viewport = window.visualViewport || null;
+  const focusHandler = () => requestLeadMobileReframe();
+  const blurHandler = () => { setTimeout(requestLeadMobileReframe, 50); };
+  const elements = [elFirst, elLast, elEmail, elPhone, elBtn].filter(Boolean);
+  elements.forEach(el => {
+    el.addEventListener("focus", focusHandler);
+    el.addEventListener("blur", blurHandler);
+  });
+
+  const viewportHandler = () => requestLeadMobileReframe();
+  if (viewport) {
+    viewport.addEventListener("resize", viewportHandler);
+    viewport.addEventListener("scroll", viewportHandler);
+  }
+  window.addEventListener("resize", viewportHandler);
+  window.addEventListener("orientationchange", viewportHandler);
+
+  requestLeadMobileReframe();
+  setTimeout(requestLeadMobileReframe, 120);
+
+  leadMobileCleanup = () => {
+    if (leadMobileRaf !== null) { cancelAnimationFrame(leadMobileRaf); leadMobileRaf = null; }
+    elements.forEach(el => {
+      el.removeEventListener("focus", focusHandler);
+      el.removeEventListener("blur", blurHandler);
+    });
+    if (viewport) {
+      viewport.removeEventListener("resize", viewportHandler);
+      viewport.removeEventListener("scroll", viewportHandler);
+    }
+    window.removeEventListener("resize", viewportHandler);
+    window.removeEventListener("orientationchange", viewportHandler);
+
+    if (leadMobileActive) {
+      leadMobileActive = false;
+      if (leadWrapEl) {
+        leadWrapEl.classList.remove("lead-mobile");
+        Object.assign(leadWrapEl.style, {
+          position: "absolute",
+          inset: "0",
+          pointerEvents: "",
+          left: "",
+          top: "",
+          width: "",
+          height: "",
+          padding: "",
+          boxSizing: "",
+          display: "",
+          justifyContent: "",
+          alignItems: "",
+          overflowY: "",
+          gap: "",
+        });
+        leadWrapEl.scrollTop = 0;
+      }
+      if (leadFormEl) {
+        Object.assign(leadFormEl.style, {
+          position: "absolute",
+          inset: "0",
+          pointerEvents: "",
+          display: "",
+          flexDirection: "",
+          gap: "",
+          alignItems: "",
+          width: "",
+          maxWidth: "",
+          margin: "",
+          padding: "",
+        });
+      }
+      [elFirst, elLast, elEmail, elPhone].forEach(el => {
+        if (!el) return;
+        Object.assign(el.style, {
+          position: "absolute",
+          left: "",
+          top: "",
+          width: "",
+          height: "",
+        });
+      });
+      if (elBtn) {
+        Object.assign(elBtn.style, {
+          position: "absolute",
+          left: "",
+          top: "",
+          width: "",
+        });
+      }
+      if (canvas) positionLeadUI();
+    }
+  };
+}
+
+function cleanupLeadMobileBehaviour(){
+  if (leadMobileCleanup) {
+    leadMobileCleanup();
+    leadMobileCleanup = null;
+  }
+}
+
 function onLeadSubmit(){
   if (leadSubmitting) return;
   const trim = s => (s||"").trim();
@@ -491,6 +719,11 @@ function onLeadSubmit(){
   mark(elPhone, !phoneOk);
 
   if (!leadData.firstName || !leadData.lastName || !emailOk || !phoneOk) return;
+
+  [elFirst, elLast, elEmail, elPhone].forEach(el => { if (el && typeof el.blur === "function") el.blur(); });
+  if (document.activeElement && typeof document.activeElement.blur === "function") {
+    try { document.activeElement.blur(); } catch(e){}
+  }
 
   leadSubmitting = true;
   if (elBtn){ elBtn.disabled = true; elBtn.style.opacity = "0.75"; elBtn.textContent = "sending…"; }

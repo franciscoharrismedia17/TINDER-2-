@@ -5,3 +5,21 @@ html, body {
 canvas {
   display: block;
 }
+
+@media (max-width: 768px), (pointer: coarse) {
+  #leadWrap.lead-mobile {
+    background: rgba(0, 0, 0, 0.72);
+    border-radius: 20px;
+  }
+
+  #leadWrap.lead-mobile input,
+  #leadWrap.lead-mobile button {
+    width: 100%;
+    max-width: none;
+    display: block;
+  }
+
+  #leadWrap.lead-mobile button {
+    margin-top: 8px;
+  }
+}
